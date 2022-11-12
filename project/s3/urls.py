@@ -1,3 +1,5 @@
+"""Urls for AWS S3 Management API."""
+
 from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 from s3.views import S3ViewSet

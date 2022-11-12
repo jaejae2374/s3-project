@@ -1,9 +1,12 @@
-from s3.models import *
+"""Serializers for AWS S3 Management API."""
+
 from rest_framework import serializers
+from s3.models import *
 from s3.const import *
 from s3.exceptions import FieldError
 
 class BucketCreateSerializer(serializers.ModelSerializer):
+    """Bucket Create Serializer."""
     policy = serializers.SerializerMethodField()
 
     class Meta:
@@ -31,13 +34,12 @@ class BucketCreateSerializer(serializers.ModelSerializer):
         )
         get_obj, _ = Action.objects.get_or_create(name = GET_OBJECT)
         list_bck, _ = Action.objects.get_or_create(name = LIST_BUCKET)
-        print(get_obj.name, list_bck.name)
         statement.action.set(
             [get_obj, list_bck]
         )
         statement.principal.set(
             Client.objects.get_or_create(
-                arn = AUTHORIZED_ARN
+                arn = f"arn:aws:iam::{AUTHORIZED_ID}:role/awesome-winter"
         ))
         return bucket
 
@@ -53,6 +55,7 @@ class BucketCreateSerializer(serializers.ModelSerializer):
 
 
 class PolicySerializer(serializers.ModelSerializer):
+    """Policy Serializer."""
     statement = serializers.SerializerMethodField()
 
     class Meta:
@@ -66,6 +69,7 @@ class PolicySerializer(serializers.ModelSerializer):
         return StatementSerializer(instance.statement).data
 
 class StatementSerializer(serializers.ModelSerializer):
+    """Statement serializer."""
     resource = serializers.SerializerMethodField()
     action = serializers.SerializerMethodField()
     principal = serializers.SerializerMethodField()
