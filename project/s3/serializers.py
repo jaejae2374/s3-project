@@ -17,35 +17,35 @@ class BucketCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         bucket = Bucket.objects.create(
-            name = validated_data['bucket_name'],
-            region = validated_data.get('region', 'us-east-2')
+            name = validated_data['name'],
+            region = validated_data['region']
         )
         policy = Policy.objects.create(
             version = POLICY_VER,
             bucket = bucket
         )
         statement = Statement.objects.create(
-            sid=f"{validated_data['bucket_name']}-stmt",
+            sid=f"{validated_data['name']}-stmt",
             policy = policy,
-            effect = DENY,
-            action = Action.objects.get_or_create(
-                name = GET_OBJECT
-            )
+            effect = DENY
         )
-        statement.resource.add(bucket)
-        statement.action.add(
-            Action.objects.get_or_create(
-                name = GET_OBJECT
-        ))
-        statement.principal.add(
+        get_obj, _ = Action.objects.get_or_create(name = GET_OBJECT)
+        list_bck, _ = Action.objects.get_or_create(name = LIST_BUCKET)
+        print(get_obj.name, list_bck.name)
+        statement.action.set(
+            [get_obj, list_bck]
+        )
+        statement.principal.set(
             Client.objects.get_or_create(
-                name = AUTHORIZED_ARN
+                arn = AUTHORIZED_ARN
         ))
         return bucket
 
     def validate(self, data):
-        if not data.get('bucket_name'):
+        if not data.get('name'):
             raise FieldError("bucket_name required.")
+        if not data.get('region'):
+            data['region'] = 'us-east-2'
         return data
     
     def get_policy(self, instance):
@@ -56,7 +56,7 @@ class PolicySerializer(serializers.ModelSerializer):
     statement = serializers.SerializerMethodField()
 
     class Meta:
-        model = Bucket
+        model = Policy
         fields = (
             'version',
             'statement'
@@ -71,7 +71,7 @@ class StatementSerializer(serializers.ModelSerializer):
     principal = serializers.SerializerMethodField()
 
     class Meta:
-        model = Bucket
+        model = Statement
         fields = (
             'sid',
             'effect',
@@ -81,7 +81,7 @@ class StatementSerializer(serializers.ModelSerializer):
         )
 
     def get_resource(self, instance):
-        return list(map(lambda x: f"arn:aws:s3:::{x.name}", instance.resource.all()))
+        return [f"arn:aws:s3:::{instance.policy.bucket.name}"]
     
     def get_action(self, instance):
         return instance.action.all().values_list('name', flat=True)
